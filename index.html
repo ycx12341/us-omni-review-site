@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex, nofollow">
+  <title>US-Omni · Clinical Review</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="site-config.js"></script>
+  <script src="static-api.js" defer></script>
+  <script src="audit.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon" aria-hidden="true">U</span>
+      <div><strong>US-Omni</strong><span>Clinical Review</span></div>
+    </div>
+    <div id="session" class="session"></div>
+  </header>
+  <main id="app"><p class="loading">Loading review workspace…</p></main>
+  <dialog id="image-dialog" aria-labelledby="image-dialog-title">
+    <header><h2 id="image-dialog-title">Ultrasound image</h2>
+      <form method="dialog"><button class="button secondary">Close</button></form>
+    </header>
+    <div id="audit-image-controls" class="image-controls" hidden>
+      <span id="expanded-resolution" class="muted"></span>
+      <button id="native-pixels" class="button secondary compact" type="button" aria-pressed="false">Actual pixels</button>
+      <button id="boost-contrast" class="button secondary compact" type="button" aria-pressed="false">Boost contrast</button>
+    </div>
+    <div class="enlarged-scan"><img id="expanded-image" alt="Enlarged ultrasound image for the current case"></div>
+  </dialog>
+  <dialog id="guide-dialog" class="text-dialog" aria-labelledby="guide-dialog-title">
+    <header><h2 id="guide-dialog-title">Instructions</h2>
+      <form method="dialog"><button class="button secondary">Close</button></form>
+    </header>
+    <div id="guide-content" class="dialog-body guide-content"></div>
+  </dialog>
+  <dialog id="qualifications-dialog" class="text-dialog" aria-labelledby="qualifications-title">
+    <form id="qualifications-form">
+      <header><h2 id="qualifications-title">Your qualifications</h2></header>
+      <div class="dialog-body">
+        <label for="qualifications-text">Tell us how we should report your qualifications in the paper.</label>
+        <p class="muted">For example: your specialty, current role and years of ultrasound experience.</p>
+        <textarea id="qualifications-text" rows="5" maxlength="2000" required></textarea>
+        <p id="qualifications-error" class="error" role="alert"></p>
+      </div>
+      <footer class="dialog-actions">
+        <p id="qualifications-status" class="muted" role="status"></p>
+        <button id="qualifications-close" type="button" class="button secondary">Close</button>
+        <button id="qualifications-save" type="submit" class="button primary">Save</button>
+      </footer>
+    </form>
+  </dialog>
+  <template id="login-template">
+    <section class="login panel">
+      <p class="eyebrow">Dataset validation</p>
+      <h1>Clinical review</h1>
+      <p id="login-description" class="muted">Review synthesized ultrasound captions and question–answer pairs.</p>
+      <form id="login-form">
+        <label for="access-code">Access code</label>
+        <input id="access-code" type="password" autocomplete="current-password" required>
+        <button class="button primary" type="submit">Sign in</button>
+      </form>
+      <p class="error" id="login-error" role="alert"></p>
+      <div id="demo-logins" hidden>
+        <p class="muted">Try the pilot with simulated images.</p>
+        <div class="demo-buttons">
+          <button class="button secondary" data-code="demo-reviewer-a">Clinician A</button>
+          <button class="button secondary" data-code="demo-reviewer-b">Clinician B</button>
+          <button class="button secondary" data-code="demo-coordinator">Coordinator</button>
+        </div>
+      </div>
+    </section>
+  </template>
+  <template id="review-template">
+    <div class="review-shell">
+      <aside class="queue" aria-label="Case queue">
+        <details id="study-menu" class="study-menu" open hidden>
+          <summary>Instructions</summary>
+          <nav id="guide-links" aria-label="Instructions"></nav>
+        </details>
+        <h2>Review queue</h2>
+        <p id="progress-label"></p>
+        <progress id="progress" aria-labelledby="progress-label"></progress>
+        <nav id="case-list" aria-label="Cases"></nav>
+      </aside>
+      <section class="workspace">
+        <div class="workspace-heading">
+          <div><p class="eyebrow" id="case-position"></p><h1 id="case-title"></h1></div>
+          <div class="case-navigation">
+            <a id="export-my-ratings" class="button primary" href="/api/my-ratings" hidden>Export my ratings</a>
+            <button class="button secondary" id="reset-all-ratings" type="button" hidden>Reset all ratings</button>
+            <button class="button secondary" id="previous">‹ Previous</button>
+            <button class="button secondary" id="next">Next ›</button>
+          </div>
+        </div>
+        <div id="case-content" class="case-content">
+          <section class="panel scan-panel" aria-labelledby="scan-title">
+            <header class="panel-header"><h2 id="scan-title">Ultrasound image</h2>
+              <button id="enlarge" class="button secondary compact">Enlarge</button>
+            </header>
+            <div class="scan-frame"><img id="scan" alt="Ultrasound image for the current case"></div>
+            <div id="audit-scans" hidden></div>
+            <p id="sample-number" class="sample-number" hidden></p>
+            <p id="image-error" class="error image-error" role="alert" hidden></p>
+            <p id="image-caption" class="scan-caption"></p>
+          </section>
+          <div class="rating-column">
+            <section class="panel output-panel" aria-labelledby="output-title">
+              <h2 id="output-title"></h2>
+              <div id="question-block" hidden><p class="field-title">Question</p><p id="question"></p>
+                <p id="answer-title" class="field-title">Synthesized answer</p></div>
+              <div id="output-text"></div>
+            </section>
+            <section class="panel rating-panel" aria-labelledby="rating-title">
+              <h2 id="rating-title">Rate each statement</h2>
+              <p id="rating-intro" class="muted">Assess image support using the scan alone. Use any provided reference when judging factual accuracy.</p>
+              <details id="rubric">
+                <summary>Rating guide</summary>
+                <p><strong>Factual accuracy</strong> Mark incorrect when the available evidence refutes the statement. Choose cannot verify when the evidence is inconclusive.</p>
+                <p><strong>Image support</strong> Choose contradicted when the scan shows the opposite. Choose insufficient evidence when the scan can be read but cannot establish the claim. Choose cannot assess image when the view or quality prevents assessment.</p>
+              </details>
+              <form id="review-form">
+                <div id="statement-fields"></div>
+                <details id="reference" hidden>
+                  <summary>Reference for factual accuracy</summary><p id="reference-text"></p>
+                </details>
+                <label for="note">Case note <span class="muted">(optional)</span></label>
+                <textarea id="note" rows="2" maxlength="2000" placeholder="Describe any ambiguity or image-quality issue"></textarea>
+                <p id="review-error" class="error" role="alert"></p>
+                <div class="submit-row">
+                  <p id="review-status" class="muted" role="status"></p>
+                  <button id="reset-case-rating" type="button" class="button secondary" hidden>Reset this case</button>
+                  <button id="submit-review" type="submit" class="button primary">Submit review</button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </div>
+      </section>
+    </div>
+  </template>
+  <template id="report-template">
+    <section class="report">
+      <div class="workspace-heading">
+        <div><p class="eyebrow">Dataset validation</p><h1>Review results</h1></div>
+        <div class="case-navigation">
+          <button id="refresh" class="button secondary">Refresh</button>
+          <a class="button primary" href="/api/export">Download ratings CSV</a>
+        </div>
+      </div>
+      <p id="report-status" class="muted" role="status"></p>
+      <div id="metrics" class="metrics"></div>
+      <section class="panel report-table">
+        <h2>By output type and stratum</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th scope="col">Group</th><th scope="col">Reviews</th><th scope="col">Factual error</th><th scope="col">Without image support</th><th scope="col">Factuality κ</th><th scope="col">Image support κ</th></tr></thead>
+            <tbody id="report-rows"></tbody>
+          </table>
+        </div>
+      </section>
+      <details class="panel report-method">
+        <summary>Metric definitions</summary>
+        <p><strong>Factual error rate</strong> Incorrect ratings divided by correct plus incorrect ratings. Cannot-verify ratings are counted separately.</p>
+        <p><strong>Without image support</strong> Contradicted plus insufficient-evidence ratings divided by all assessable image-support ratings. Cannot-assess-image ratings are counted separately.</p>
+        <p><strong>Inter-annotator agreement</strong> Unweighted Cohen’s κ and raw agreement over statements rated independently by both clinicians. All rating categories enter κ. κ is unavailable with no paired ratings or when expected agreement is 100%.</p>
+        <p>Rates pool submitted clinician ratings in the selected sample, without population weights or adjudication.</p>
+      </details>
+    </section>
+  </template>
+  <template id="audit-report-template">
+    <section class="report">
+      <div class="workspace-heading">
+        <div><p class="eyebrow">Dataset validation</p><h1>Review results</h1></div>
+        <div class="case-navigation">
+          <button id="refresh" class="button secondary">Refresh</button>
+          <a class="button primary" href="/api/export">Download ratings CSV</a>
+        </div>
+      </div>
+      <p id="report-status" class="muted" role="status"></p>
+      <p id="reviewer-progress" class="muted"></p>
+      <section class="panel audit-import" aria-labelledby="import-title">
+        <h2 id="import-title">Import offline ratings</h2>
+        <p class="muted">Choose the JSON file each clinician downloaded using Export my ratings.</p>
+        <input id="import-file" type="file" accept=".json,application/json" aria-label="Clinician ratings JSON">
+        <p id="import-status" class="muted" role="status"></p>
+      </section>
+      <div id="metrics" class="metrics audit-metrics"></div>
+      <section class="panel report-table audit-agreement">
+        <h2>Inter-annotator agreement</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th scope="col">Outcome</th><th scope="col">Paired cases</th><th scope="col">Raw agreement</th><th scope="col">Cohen’s κ</th></tr></thead>
+            <tbody id="audit-agreement-rows"></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="panel report-table">
+        <h2>By region and answer source</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th scope="col">Group</th><th scope="col">Reviews submitted</th><th scope="col">Definite error</th><th scope="col">Beyond the evidence</th><th scope="col">Not assessable</th><th scope="col">Invalid QA</th></tr></thead>
+            <tbody id="report-rows"></tbody>
+          </table>
+        </div>
+      </section>
+      <details class="panel report-method">
+        <summary>Metric definitions</summary>
+        <p>Definite error includes E1–E4, E6, Q3 Other, or Q6 No. Beyond the evidence includes E5 or E7. A rating can count toward both rates.</p>
+        <p>Rates pool submitted ratings from both clinicians. Definite error, beyond the evidence, and invalid QA use assessable ratings as their denominator. Not assessable uses all submitted ratings. The CSV includes the workbook’s sampling weights.</p>
+        <p>Agreement uses cases rated by both clinicians and requires both to assess the case for outcomes after Q1a. Cohen’s κ is unavailable when there are no eligible pairs or expected agreement is 100%.</p>
+      </details>
+    </section>
+  </template>
+</body>
+</html>
