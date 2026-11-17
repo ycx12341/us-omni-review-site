@@ -84,7 +84,10 @@ function renderAuditForm(form, readOnly) {
           }
           updateVisibility();
         });
-        label.append(input, element("span", caption));
+        const text = element("span", caption);
+        const optionNote = question.option_notes && question.option_notes[value];
+        if (optionNote) text.append(element("small", optionNote, "audit-option-note"));
+        label.append(input, text);
         options.append(label);
       }
       fieldset.append(options);
