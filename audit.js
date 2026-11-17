@@ -14,7 +14,7 @@ function prepareAuditReview(rubric) {
     element("p", "Q3–Q4 · Use E4 when the evidence contradicts the answer, E5 when it provides no basis for the claim, and E7 when the answer states a suggested finding as definite."),
     element("p", "Mark every applicable error type. If a case is outside your experience, write “needs specialist review” in the case note."),
   );
-  $("#note").placeholder = "Add any context, or explain a Q3 Other selection";
+  $("#note").placeholder = "Add any error that the questions above do not cover";
   $("#enlarge").hidden = true;
   $("#scan").parentElement.hidden = true;
   $("#image-caption").hidden = true;
@@ -32,6 +32,15 @@ function renderAuditForm(form, readOnly) {
   quote.readOnly = readOnly;
   quoteLabel.append(quote);
   quote.addEventListener("input", () => { form.labels.q4_quote = quote.value; });
+
+  const otherLabel = element("label", "Say what is wrong (Other)", "audit-quote audit-other");
+  const other = element("textarea");
+  other.rows = 2;
+  other.maxLength = 2000;
+  other.value = form.labels.q3_other || "";
+  other.readOnly = readOnly;
+  otherLabel.append(other);
+  other.addEventListener("input", () => { form.labels.q3_other = other.value; });
 
   const sections = Object.entries(auditRubric)
     .filter(([key]) => key !== "q6" || current.mask_count)
@@ -68,12 +77,18 @@ function renderAuditForm(form, readOnly) {
           } else {
             form.labels[key] = value;
           }
+          // The Q3 explanation belongs to Other, so unticking Other clears it.
+          if (key === "q3" && !form.labels.q3.includes("other")) {
+            delete form.labels.q3_other;
+            other.value = "";
+          }
           updateVisibility();
         });
         label.append(input, element("span", caption));
         options.append(label);
       }
       fieldset.append(options);
+      if (key === "q3") fieldset.append(otherLabel);
       if (key === "q4") fieldset.append(quoteLabel);
       return fieldset;
     });
@@ -87,9 +102,7 @@ function renderAuditForm(form, readOnly) {
     }
     stoppedMessage.hidden = adequacy !== "no";
     quoteLabel.hidden = !(form.labels.q4 || []).some((value) => value !== "none");
-    const noteLabel = $('label[for="note"]');
-    noteLabel.querySelector("span").textContent = (adequacy !== "no" && (form.labels.q3 || []).includes("other")) ?
-      "(required for Q3 Other)" : "(optional)";
+    otherLabel.hidden = !(form.labels.q3 || []).includes("other");
   }
   fields.replaceChildren(...sections, stoppedMessage);
   updateVisibility();
@@ -108,9 +121,10 @@ function validateAuditForm() {
     }
   }
   if (draft.labels.q1a === "no") return true;
-  const quote = $(".audit-quote textarea");
+  const other = $(".audit-other textarea");
+  if (!other.parentElement.hidden && !other.value.trim()) return fail("Say what is wrong for Q3 Other.", other);
+  const quote = $(".audit-quote:not(.audit-other) textarea");
   if (!quote.parentElement.hidden && !quote.value.trim()) return fail("Quote the relevant words for Q4.", quote);
-  if (draft.labels.q3.includes("other") && !draft.note.trim()) return fail("Explain Q3 Other in the case note.", $("#note"));
   return true;
 }
 

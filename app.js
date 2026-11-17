@@ -390,7 +390,8 @@ function renderCase(savedMessage) {
   $("#submit-review").hidden = readOnly;
   $("#submit-review").textContent = review && session.web ? "Save changes" : "Submit review";
   $("#submit-review").disabled = true;
-  $("#reset-case-rating").hidden = !session.offline || !readOnly;
+  // On the website every case has Reset, which clears the form; elsewhere it clears a submitted rating.
+  $("#reset-case-rating").hidden = !(session.web || (session.offline && readOnly));
 
   if (session.audit) {
     renderAuditAnswer(text);
@@ -494,6 +495,18 @@ async function submitReview(event) {
 async function resetRatings(scope) {
   if (submitting || !current) return;
   const position = current.position;
+  if (session.web && scope === "case") {
+    // Clears this case's answers and note only. A submitted rating stays until Save changes.
+    const prompt = current.review ?
+      "Clear all answers and the note for this case? Your submitted rating stays as it is until you choose Save changes." :
+      "Clear all answers and the note for this case?";
+    if (!window.confirm(prompt)) return;
+    const blank = {labels: session.audit ? {} : current.statements.map(() => ({fact: "", support: ""})), note: ""};
+    drafts.set(position, blank);
+    draftStorage(current.draft_key, current.review ? blank : null);
+    renderCase();
+    return;
+  }
   const message = scope === "all" ?
     "Permanently clear all submitted ratings and unsaved answers in this offline copy?" :
     "Clear the submitted rating for case " + position + " so you can review it again?";
