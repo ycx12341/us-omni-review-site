@@ -172,6 +172,15 @@
       return {qualifications};
     }
 
+    if (path === "/api/reset-reviews") {
+      // The website resets one case at a time; Reset all ratings exists only in offline copies.
+      if (!body || body.scope !== "case") throw new Error("Reset one case at a time.");
+      const item = caseAt(String(body.position));
+      await service("DELETE", "/ratings/" + item.key);
+      delete ratings[item.key];
+      return {reset: true};
+    }
+
     const slash = path.lastIndexOf("/");
     const prefix = path.slice(0, slash);
     if (prefix === "/api/media") return {url: await mediaUrl(path.slice(slash + 1))};

@@ -390,7 +390,7 @@ function renderCase(savedMessage) {
   $("#submit-review").hidden = readOnly;
   $("#submit-review").textContent = review && session.web ? "Save changes" : "Submit review";
   $("#submit-review").disabled = true;
-  // On the website every case has Reset, which clears the form; elsewhere it clears a submitted rating.
+  // On the website every case has Reset: it clears a submitted rating, or the unsent answers.
   $("#reset-case-rating").hidden = !(session.web || (session.offline && readOnly));
 
   if (session.audit) {
@@ -495,20 +495,17 @@ async function submitReview(event) {
 async function resetRatings(scope) {
   if (submitting || !current) return;
   const position = current.position;
-  if (session.web && scope === "case") {
-    // Clears this case's answers and note only. A submitted rating stays until Save changes.
-    const prompt = current.review ?
-      "Clear all answers and the note for this case? Your submitted rating stays as it is until you choose Save changes." :
-      "Clear all answers and the note for this case?";
-    if (!window.confirm(prompt)) return;
-    const blank = {labels: session.audit ? {} : current.statements.map(() => ({fact: "", support: ""})), note: ""};
-    drafts.set(position, blank);
-    draftStorage(current.draft_key, current.review ? blank : null);
+  if (session.web && scope === "case" && !current.review) {
+    // Not submitted yet: only this browser's answers and note are cleared.
+    if (!window.confirm("Clear all answers and the note for this case?")) return;
+    drafts.set(position, {labels: session.audit ? {} : current.statements.map(() => ({fact: "", support: ""})), note: ""});
+    draftStorage(current.draft_key, null);
     renderCase();
     return;
   }
   const message = scope === "all" ?
     "Permanently clear all submitted ratings and unsaved answers in this offline copy?" :
+    session.web ? "Clear your rating of this case? It will show as not rated until you submit it again." :
     "Clear the submitted rating for case " + position + " so you can review it again?";
   if (!window.confirm(message)) return;
 
@@ -534,6 +531,7 @@ async function resetRatings(scope) {
   }
   queue[queueIndex(position)].submitted = false;
   drafts.delete(position);
+  draftStorage(current.draft_key, null);
   submitting = false;
   await openCase(position, "Rating cleared. You can review this case again.");
   renderQueue(position);

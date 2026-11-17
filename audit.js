@@ -128,6 +128,11 @@ function validateAuditForm() {
   if (!other.parentElement.hidden && !other.value.trim()) return fail("Say what is wrong for Q3 Other.", other);
   const quote = $(".audit-quote:not(.audit-other) textarea");
   if (!quote.parentElement.hidden && !quote.value.trim()) return fail("Quote the relevant words for Q4.", quote);
+  const ticked = (key) => (draft.labels[key] || []).some((value) => value !== "none");
+  const hasError = ticked("q2") || ticked("q3") || ticked("q4") || (current.mask_count && draft.labels.q6 === "no");
+  if (draft.labels.q5 === "no_error" && hasError) {
+    return fail("Q5 cannot be “No error” when an error is ticked in Q2–Q4 or Q6 is No.", $('input[name="q5"][value="no_error"]'));
+  }
   return true;
 }
 
