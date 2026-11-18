@@ -265,3 +265,20 @@ td small { display: block; color: var(--muted); margin-top: .15rem; }
   .study-menu { margin-bottom: .6rem; }
   .queue:has(.study-menu:not([hidden])) nav#case-list { max-height: none; min-height: 0; }
 }
+
+/* Full form / Simplified (preview) switch and the preview, which saves nothing. */
+.form-mode { display: inline-flex; margin-top: .55rem; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper); }
+.form-mode button { border: 0; background: transparent; padding: .35rem .75rem; font-size: .82rem; font-weight: 600; color: var(--muted); }
+.form-mode button[aria-pressed="true"] { background: var(--accent); color: white; }
+.preview-panel { padding: 1rem; }
+.preview-banner { margin: -.1rem 0 .8rem; padding: .5rem .7rem; border-radius: 7px; background: #fff4d6; color: #6b4b00; font-size: .85rem; font-weight: 600; }
+.preview-panel h2 { font-size: 1rem; margin-bottom: .6rem; }
+.preview-question { min-width: 0; margin: 0 0 .55rem; padding: .65rem .72rem; border: 1px solid var(--line); border-radius: 8px; }
+.preview-question legend { max-width: 100%; padding: 0 .24rem; font-size: .9rem; font-weight: 650; }
+.preview-question .muted { white-space: pre-line; }
+.preview-text { display: block; margin-top: .55rem; }
+.preview-text label { font-weight: 650; font-size: .9rem; }
+.preview-optional { margin-top: .9rem; padding-top: .8rem; border-top: 1px dashed var(--line); }
+.preview-optional h3 { font-size: .92rem; margin: 0 0 .25rem; }
+.preview-group-title { margin: .35rem 0 .1rem; font-size: .8rem; font-weight: 700; color: var(--accent); }
+.preview-panel textarea { width: 100%; margin-top: .3rem; }

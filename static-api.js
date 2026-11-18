@@ -11,6 +11,8 @@
   let byPosition = new Map();
   let ratings = {};
   let guide = null;
+  let guideV2 = null;
+  let rubricV2 = null;
   let qualifications = null;
   let media = new Map();
   let role = null;
@@ -26,6 +28,10 @@
   const ready = load("rubric.json").then((questions) => {
     rubric = questions;
   });
+  // The simplified form (v2 draft) is only previewed; nothing in it is submitted.
+  const readyV2 = load("rubric-v2.json").then((form) => {
+    rubricV2 = form;
+  }, () => {});
 
   function savedCode(value) {
     try {
@@ -102,7 +108,7 @@
     role = name = code = null;
     ratings = {};
     cases = [];
-    guide = qualifications = null;
+    guide = guideV2 = qualifications = null;
     byPosition = new Map();
     for (const loading of media.values()) loading.then(URL.revokeObjectURL, () => {});
     media = new Map();
@@ -123,6 +129,7 @@
       qualifications = data.qualifications;
       cases = content.cases;
       guide = content.guide;
+      guideV2 = content.guide_v2 || null;
       byPosition = new Map(cases.map((item) => [item.number, item]));
     } catch (error) {
       signOut();
@@ -164,6 +171,11 @@
       return cases.map((item) => ({position: item.number, sample: item.sample, kind: "qa", submitted: item.key in ratings}));
     }
     if (path === "/api/guide") return guide;
+    if (path === "/api/guide-v2") return guideV2;
+    if (path === "/api/rubric-v2") {
+      await readyV2;
+      return rubricV2;
+    }
     if (path === "/api/qualifications") {
       if (body !== undefined) {
         const data = await service("PUT", "/qualifications", {text: body.text});

@@ -24,7 +24,12 @@ let requestNumber = 0;
 let submitting = false;
 let savingLogin = false;
 let qualifications = null;
-let guideLoaded = false;
+// The guide shown in the Instructions dialog. The website has two: the current one and, for the
+// "Simplified (preview)" mode, the simplified draft (v2).
+let loadedGuide = null;
+let guides = {full: null, preview: null};
+// "full" rates with the real form; "preview" only shows the simplified form and saves nothing.
+let formMode = "full";
 const drafts = new Map();
 
 function element(tag, text, className) {
@@ -68,7 +73,8 @@ function showSession() {
       current = null;
       requestNumber += 1;
       for (const open of document.querySelectorAll("dialog[open]")) open.close();
-      guideLoaded = false;
+      loadedGuide = null;
+      formMode = "full";
       qualifications = null;
       $("#guide-content").replaceChildren();
       $("#expanded-image").removeAttribute("src");
@@ -133,6 +139,7 @@ async function openReview() {
     return;
   }
   show("review");
+  formMode = "full";
   $("#export-my-ratings").hidden = !session.offline;
   $("#reset-all-ratings").hidden = !session.offline;
   $("#reset-all-ratings").disabled = true;
@@ -158,6 +165,7 @@ async function openReview() {
     dialog.showModal();
   });
   if (session.audit) prepareAuditReview(rubric);
+  if (session.web && session.audit) setUpFormMode();
   if (session.web) await setUpStudyMenu();
   await openCase((queue.find((item) => !item.submitted) || queue[0]).position);
 }
@@ -208,8 +216,21 @@ function rememberDraft() {
 }
 
 async function setUpStudyMenu() {
-  const [guide, saved] = await Promise.all([api("/api/guide"), api("/api/qualifications")]);
+  const [guide, guideV2, saved] = await Promise.all([api("/api/guide"),
+    session.audit ? api("/api/guide-v2").catch(() => null) : null, api("/api/qualifications")]);
   qualifications = saved.qualifications;
+  guides = {full: guide, preview: guideV2};
+  renderGuideLinks();
+  $("#study-menu").hidden = false;
+  // On a phone the menu starts closed, so the case queue stays near the top.
+  if (window.matchMedia("(max-width: 585px)").matches) $("#study-menu").open = false;
+}
+
+// The Instructions menu follows the form mode: the current guide with the full form, the simplified
+// draft with the preview. Qualifications are saved, so they are offered only with the full form.
+function renderGuideLinks() {
+  const preview = formMode === "preview";
+  const guide = preview ? guides.preview : guides.full;
   const links = [];
   if (guide) {
     for (const section of guide.sections) {
@@ -230,16 +251,38 @@ async function setUpStudyMenu() {
       links.push(pdf);
     }
   }
-  const about = element("button", undefined, "guide-link guide-extra");
-  about.type = "button";
-  about.id = "open-qualifications";
-  about.addEventListener("click", openQualifications);
-  links.push(about);
+  if (!preview) {
+    const about = element("button", undefined, "guide-link guide-extra");
+    about.type = "button";
+    about.id = "open-qualifications";
+    about.addEventListener("click", openQualifications);
+    links.push(about);
+  }
   $("#guide-links").replaceChildren(...links);
-  $("#study-menu").hidden = false;
-  // On a phone the menu starts closed, so the case queue stays near the top.
-  if (window.matchMedia("(max-width: 585px)").matches) $("#study-menu").open = false;
   showQualificationsMark();
+}
+
+function setUpFormMode() {
+  const group = $("#form-mode");
+  for (const button of group.querySelectorAll("button")) {
+    button.addEventListener("click", () => setFormMode(button.dataset.mode));
+  }
+  group.hidden = false;
+}
+
+// Switching only shows or hides the two forms. The full form, its draft and its rating are never touched.
+function setFormMode(mode) {
+  if (mode === formMode) return;
+  formMode = mode;
+  const preview = mode === "preview";
+  for (const button of document.querySelectorAll("#form-mode button")) {
+    button.setAttribute("aria-pressed", String(button.dataset.mode === mode));
+  }
+  $("#review-form").closest("section").hidden = preview;
+  $("#preview-panel").hidden = !preview;
+  for (const open of document.querySelectorAll("dialog[open]")) open.close();
+  if (guides.full || guides.preview) renderGuideLinks();
+  if (preview && current) renderPreview(current);
 }
 
 function showQualificationsMark() {
@@ -252,8 +295,8 @@ function showQualificationsMark() {
 
 function openGuide(guide, sectionId) {
   const content = $("#guide-content");
-  if (!guideLoaded) {
-    // The guide comes from the study's own files in review-data/guide/.
+  if (loadedGuide !== guide) {
+    // The guide comes from the study's own files in review-data/guide/ (or guide-v2/ for the preview).
     content.innerHTML = guide.html;
     for (const link of content.querySelectorAll("a[href]")) {
       link.target = "_blank";
@@ -262,8 +305,9 @@ function openGuide(guide, sectionId) {
     for (const image of content.querySelectorAll("img[data-media]")) {
       api("/api/media/" + image.dataset.media).then(({url}) => { image.src = url; }, () => {});
     }
-    guideLoaded = true;
+    loadedGuide = guide;
   }
+  $("#guide-dialog-title").textContent = guide === guides.preview ? "Instructions (simplified draft)" : "Instructions";
   const guideDialog = $("#guide-dialog");
   if (!guideDialog.open) guideDialog.showModal();
   document.getElementById(sectionId)?.scrollIntoView({block: "start"});
@@ -338,6 +382,8 @@ async function openCase(position, savedMessage) {
     if (requested !== requestNumber) return;
     current = data;
     renderCase(savedMessage);
+    // A new case starts the preview empty; preview answers are never kept.
+    if (formMode === "preview") renderPreview(current);
   } catch (error) {
     if (requested === requestNumber) $("#review-error").textContent = error.message;
   }

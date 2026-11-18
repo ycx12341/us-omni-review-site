@@ -10,6 +10,7 @@
   <script src="site-config.js"></script>
   <script src="static-api.js" defer></script>
   <script src="audit.js" defer></script>
+  <script src="preview.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -89,7 +90,11 @@
       </aside>
       <section class="workspace">
         <div class="workspace-heading">
-          <div><p class="eyebrow" id="case-position"></p><h1 id="case-title"></h1></div>
+          <div><p class="eyebrow" id="case-position"></p><h1 id="case-title"></h1>
+            <div id="form-mode" class="form-mode" role="group" aria-label="Rating form" hidden>
+              <button type="button" data-mode="full" aria-pressed="true">Full form</button>
+              <button type="button" data-mode="preview" aria-pressed="false">Simplified (preview)</button>
+            </div></div>
           <div class="case-navigation">
             <a id="export-my-ratings" class="button primary" href="/api/my-ratings" hidden>Export my ratings</a>
             <button class="button secondary" id="reset-all-ratings" type="button" hidden>Reset all ratings</button>
@@ -137,6 +142,11 @@
                   <button id="submit-review" type="submit" class="button primary">Submit review</button>
                 </div>
               </form>
+            </section>
+            <section id="preview-panel" class="panel rating-panel preview-panel" aria-labelledby="preview-title" hidden>
+              <p class="preview-banner" role="note">Preview of the simplified form – answers here are not saved</p>
+              <h2 id="preview-title">Rate this answer (simplified)</h2>
+              <div id="preview-fields"></div>
             </section>
           </div>
         </div>
